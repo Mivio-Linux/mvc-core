@@ -1,0 +1,26 @@
+name: mvc_docs_build
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build-docs
+      run: cargo doc --no-deps
+    - name: Fix
+      run: |
+        cp -r ./target/doc/static.files ./target/doc/mvc_core
+        find ./target/doc/mvc_core -name "*.html" -exec sed -i 's|../static.files|./static.files|g' {} \;
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc/mvc_core
