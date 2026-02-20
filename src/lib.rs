@@ -25,7 +25,7 @@ pub struct Snapshot {
     /// name of the user who made the commit
     pub name: String, 
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct User {
     pub email: String,
     pub name: String,
