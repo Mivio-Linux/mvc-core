@@ -1,4 +1,4 @@
-use std::{fs::{self, read}, io::{self, Write}, path::{Path, PathBuf}};
+use std::{fs::{self}, io::{self, Write}, path::{Path, PathBuf}};
 use serde_json::{Value};
 use tar::{Archive, Builder, Header};
 use serde::{Deserialize, Serialize};
@@ -212,22 +212,23 @@ fn create_archive(arch_file: &fs::File, ignore: Vec<String>, search_path: &str) 
     let mut archive = Builder::new(arch_file);
     let read_dir = walkdir::WalkDir::new(search_path).min_depth(1).contents_first(false).follow_links(false);
     for object in read_dir {
-        println!("{:?}", object);
         let object = object?; 
         let object_path = object.path().strip_prefix("./").unwrap_or(object.path());
-        println!("{:?} not in ignore: {}", object_path, should_ignore(object_path, &ignore));
-        println!("{:?}", ignore);
+        let object_filetype = object.file_type();
         
         if !should_ignore(object_path, &ignore) {
             if object.path_is_symlink() {
-                let mut header = Header::new_gnu();
-                header.set_entry_type(tar::EntryType::Symlink);
-                let target = fs::read_link(object_path)?;
-                archive.append_link(&mut header, object_path, &target)?; //FIXME
+                if !object_path.is_absolute() {
+                    let mut header = Header::new_gnu();
+                    header.set_entry_type(tar::EntryType::Symlink);
+                    let target = fs::read_link(object_path)?;
+                    archive.append_link(&mut header, object_path, &target)?; //FIXME
+                } else {
+                    return Err(io::Error::new(io::ErrorKind::InvalidInput, "Full path passed"));
+                }
             }
-            else if object.metadata()?.is_dir() { //проверь директория ли это
+            else if object_filetype.is_dir() { //проверь директория ли это
                 archive.append_dir(&object_path, &object_path)?; // и заархивируй ее без дочерних элементами
-                println!("{:?}", object.path().to_str().unwrap());
             }
             else { 
                 archive.append_path(object_path)?; // просто заархивируй.
